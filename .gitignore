@@ -1,0 +1,5 @@
+phivox-env/
+data/
+__pycache__/
+*.pyc
+.env

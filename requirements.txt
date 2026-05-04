@@ -1,0 +1,9 @@
+dashscope
+librosa
+sounddevice
+numpy
+scipy
+flask
+flask-socketio
+pydub
+matplotlib
