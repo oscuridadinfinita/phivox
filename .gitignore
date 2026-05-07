@@ -3,3 +3,10 @@ data/
 __pycache__/
 *.pyc
 .env
+
+# PhiVox generated media
+*.wav
+*.mp3
+*.flac
+*.ogg
+data/
