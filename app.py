@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
-from flask import Flask, jsonify, render_template_string, request, send_file
+from flask import Flask, jsonify, render_template, request, send_file
 from flask_socketio import SocketIO, emit
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
@@ -82,36 +82,11 @@ geometry_engine = SacredGeometryEngine()
 JOURNEY_REGISTRY: dict[str, Path] = {}
 JOURNEY_METADATA: dict[str, dict[str, Any]] = {}
 
-HOME_TEMPLATE = """
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <title>PhiVox</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 820px; margin: 40px auto; line-height: 1.5; }
-    code { background: #f4f4f4; padding: 2px 5px; border-radius: 4px; }
-    .card { border: 1px solid #ddd; border-radius: 16px; padding: 20px; margin: 16px 0; }
-  </style>
-</head>
-<body>
-  <h1>PhiVox</h1>
-  <p>Calibración vocal, síntesis Phi, beats binaurales y visualización fractal en tiempo real.</p>
-  <div class="card">
-    <h2>Endpoints</h2>
-    <p><code>POST /calibrate</code>: multipart con campo <code>audio</code>.</p>
-    <p><code>POST /generate_journey</code>: JSON con <code>human_base_freq</code>, <code>duration</code>, <code>desired_state</code>.</p>
-    <p><code>GET /download/&lt;journey_id&gt;</code>: descarga WAV generado.</p>
-    <p>Socket.IO: emitir <code>start_stream</code> con <code>{"journey_id": "..."}</code>.</p>
-  </div>
-</body>
-</html>
-"""
 
 
 @app.get("/")
 def home() -> str:
-    return render_template_string(HOME_TEMPLATE)
+    return render_template("index.html")
 
 
 @app.post("/calibrate")

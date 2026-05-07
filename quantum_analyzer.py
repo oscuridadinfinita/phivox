@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, asdict
 from pathlib import Path
+import warnings
 
 import librosa
 import numpy as np
@@ -48,7 +49,13 @@ class VoiceAnalyzer:
         if not path.exists():
             raise FileNotFoundError(f"Audio file not found: {path}")
 
-        y, sr = librosa.load(path, sr=self.sample_rate, mono=True)
+        # Browser recordings often arrive as webm/ogg containers. PySoundFile may
+        # warn and librosa will transparently fall back to audioread/ffmpeg. The
+        # fallback is expected, so we keep the calibration console clean.
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="PySoundFile failed.*")
+            warnings.filterwarnings("ignore", category=FutureWarning)
+            y, sr = librosa.load(path, sr=self.sample_rate, mono=True)
         if y.size == 0:
             raise ValueError("Audio file is empty or unsupported")
 

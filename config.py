@@ -46,7 +46,7 @@ VISUAL_DIR: Path = DATA_DIR / "visuals"
 for directory in (DATA_DIR, UPLOAD_DIR, OUTPUT_DIR, VISUAL_DIR):
     directory.mkdir(parents=True, exist_ok=True)
 
-ALLOWED_AUDIO_EXTENSIONS: set[str] = {"wav", "mp3", "m4a", "flac", "ogg", "aac"}
+ALLOWED_AUDIO_EXTENSIONS: set[str] = {"wav", "mp3", "m4a", "flac", "ogg", "aac", "webm"}
 MAX_UPLOAD_BYTES: int = 50 * 1024 * 1024
 
 # -----------------------------

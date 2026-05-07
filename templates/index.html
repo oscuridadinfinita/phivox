@@ -1,160 +1,409 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>PhiVox · Portal Vibracional</title>
-  <link rel="icon" href="data:,">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PhiVox · Lenguaje geométrico de intención</title>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
-    :root { --phi: 1.618; --bg: #0a0f0f; --panel: #111b1b; --gold: #c9a050; --text: #e0e0d0; }
-    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; align-items: center; }
-    .container { max-width: 900px; width: 100%; padding: 20px; box-sizing: border-box; }
-    h1, h2 { color: var(--gold); text-align: center; }
-    .card { background: var(--panel); border: 1px solid #2a3a3a; border-radius: 16px; padding: 20px; margin: 20px 0; }
-    button { background: var(--gold); color: #0a0f0f; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: transform 0.2s; }
-    button:hover { transform: scale(1.02); }
-    select, input[type=range] { width: 100%; padding: 10px; background: #0a0f0f; color: var(--text); border: 1px solid #2a3a3a; border-radius: 8px; margin: 10px 0; }
-    #profile pre { background: #000; padding: 15px; border-radius: 10px; overflow-x: auto; }
-    #fractalImg { max-width: 100%; border-radius: 16px; }
-    .hidden { display: none; }
+    :root {
+      --bg: #080812;
+      --panel: rgba(255,255,255,.075);
+      --panel-strong: rgba(255,255,255,.115);
+      --line: rgba(255,255,255,.14);
+      --text: #f6f2ff;
+      --muted: #b8afcf;
+      --accent: #d7b46a;
+      --accent-2: #8ee6d8;
+      --danger: #ff7b7b;
+      --ok: #9cffc4;
+      --shadow: 0 22px 70px rgba(0,0,0,.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 20% 10%, rgba(215,180,106,.22), transparent 36%),
+        radial-gradient(circle at 85% 15%, rgba(142,230,216,.16), transparent 32%),
+        radial-gradient(circle at 50% 90%, rgba(137,92,255,.18), transparent 35%),
+        var(--bg);
+      line-height: 1.45;
+    }
+    main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 56px; }
+    header { display: grid; grid-template-columns: 1.1fr .9fr; gap: 18px; align-items: stretch; margin-bottom: 18px; }
+    h1 { font-size: clamp(42px, 7vw, 92px); line-height: .88; margin: 0 0 16px; letter-spacing: -0.07em; }
+    h2 { margin: 0 0 12px; font-size: 21px; letter-spacing: -.02em; }
+    h3 { margin: 0 0 8px; font-size: 15px; color: var(--accent-2); text-transform: uppercase; letter-spacing: .09em; }
+    p { color: var(--muted); margin: 0 0 12px; }
+    .hero, .card {
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg, var(--panel), rgba(255,255,255,.045));
+      border-radius: 28px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+    .hero { min-height: 290px; display: flex; flex-direction: column; justify-content: space-between; }
+    .hero .claim { font-size: clamp(18px, 2.1vw, 25px); color: var(--text); max-width: 780px; }
+    .signature { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .pill, .chip {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.07);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 18px; }
+    .span-4 { grid-column: span 4; }
+    .span-5 { grid-column: span 5; }
+    .span-7 { grid-column: span 7; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+    label { display: block; font-size: 13px; color: var(--muted); margin: 13px 0 7px; }
+    input, select, textarea {
+      width: 100%; border: 1px solid var(--line); border-radius: 16px;
+      background: rgba(0,0,0,.28); color: var(--text); padding: 12px 13px;
+      outline: none; font: inherit;
+    }
+    textarea { min-height: 76px; resize: vertical; }
+    button, .button-link {
+      appearance: none; border: 1px solid rgba(255,255,255,.2); border-radius: 16px;
+      padding: 12px 14px; color: #17110a; background: linear-gradient(135deg, var(--accent), #ffe1a0);
+      font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      gap: 8px; text-decoration: none; min-height: 46px;
+    }
+    button.secondary { background: rgba(255,255,255,.08); color: var(--text); }
+    button.ghost { background: transparent; color: var(--text); }
+    button:disabled { opacity: .52; cursor: not-allowed; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .stack { display: grid; gap: 12px; }
+    .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .metric { border: 1px solid var(--line); background: rgba(0,0,0,.22); border-radius: 18px; padding: 14px; }
+    .metric b { display: block; font-size: 22px; color: var(--text); margin-bottom: 2px; }
+    .metric span { color: var(--muted); font-size: 12px; }
+    #visualFrame {
+      width: 100%; aspect-ratio: 1 / 1; object-fit: contain; display: grid; place-items: center;
+      border-radius: 26px; border: 1px solid var(--line); background:
+        radial-gradient(circle, rgba(255,255,255,.08), transparent 52%), rgba(0,0,0,.20);
+      min-height: 320px;
+    }
+    .placeholder {
+      width: 100%; aspect-ratio: 1 / 1; display: grid; place-items: center; text-align: center;
+      color: var(--muted); border-radius: 26px; border: 1px dashed var(--line); padding: 20px;
+      background: rgba(0,0,0,.18);
+    }
+    pre { white-space: pre-wrap; word-break: break-word; margin: 0; color: #efe8ff; font-size: 13px; }
+    .log { border-radius: 18px; background: rgba(0,0,0,.34); border: 1px solid var(--line); padding: 14px; max-height: 240px; overflow: auto; }
+    audio { width: 100%; margin-top: 8px; }
+    .ok { color: var(--ok); }
+    .danger { color: var(--danger); }
+    .muted { color: var(--muted); }
+    .hidden { display: none !important; }
+    footer { margin-top: 18px; color: var(--muted); font-size: 13px; text-align: center; }
+    @media (max-width: 900px) {
+      header, .grid { grid-template-columns: 1fr; }
+      .span-4, .span-5, .span-7, .span-8, .span-12 { grid-column: auto; }
+      .metric-grid { grid-template-columns: 1fr; }
+      main { width: min(100% - 20px, 720px); padding-top: 18px; }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🌀 PhiVox</h1>
-    <p style="text-align:center">Laboratorio de música dimensional cuántica</p>
+<main>
+  <header>
+    <section class="hero">
+      <div>
+        <h1>PhiVox</h1>
+        <p class="claim">Transforma una voz humana en frecuencia raíz, viaje sonoro Phi, beat binaural y geometría viva de intención.</p>
+      </div>
+      <div class="signature">
+        <span class="pill">voz → valor</span>
+        <span class="pill">Phi → estructura</span>
+        <span class="pill">biodiversidad → intención</span>
+        <span class="pill">geometría → memoria visual</span>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Estado del sistema</h2>
+      <div class="metric-grid">
+        <div class="metric"><b id="freqMetric">—</b><span>frecuencia raíz</span></div>
+        <div class="metric"><b id="beatMetric">—</b><span>beat binaural</span></div>
+        <div class="metric"><b id="geometryMetric">—</b><span>geometría</span></div>
+      </div>
+      <p style="margin-top:14px">Audio experimental para bienestar, arte y exploración perceptiva. No sustituye diagnóstico ni tratamiento médico.</p>
+    </section>
+  </header>
 
-    <!-- Tarjeta 1: Calibración -->
-    <div class="card">
-      <h2>1. Calibración de Voz</h2>
-      <button id="recordBtn">🎤 Grabar muestra (5s)</button>
-      <span id="recordingStatus" class="hidden"> Grabando...</span>
-      <audio id="previewAudio" controls class="hidden" style="width:100%;margin-top:10px;"></audio>
-      <div id="profile" class="hidden">
-        <h3>Perfil Vibracional</h3>
-        <pre id="profileData"></pre>
+  <section class="grid">
+    <div class="card span-5">
+      <h3>1 · Calibración</h3>
+      <h2>Captura tu semilla vocal</h2>
+      <p>Graba una vocal sostenida, una frase corta o sube un archivo de audio.</p>
+      <div class="row">
+        <button id="recordBtn" type="button">Grabar voz</button>
+        <button id="stopBtn" class="secondary" type="button" disabled>Detener</button>
+        <button id="calibrateBtn" class="secondary" type="button">Calibrar</button>
+      </div>
+      <label for="audioFile">O subir archivo</label>
+      <input id="audioFile" type="file" accept="audio/*" />
+      <label for="humanBaseFreq">Frecuencia raíz detectada / manual</label>
+      <input id="humanBaseFreq" type="number" step="0.01" min="20" max="2000" value="194.4" />
+      <div id="recordingStatus" class="muted" style="margin-top:10px">Listo para grabar o subir audio.</div>
+    </div>
+
+    <div class="card span-7">
+      <h3>2 · Intención</h3>
+      <h2>Diseña el viaje</h2>
+      <div class="grid" style="gap:12px">
+        <div class="span-4">
+          <label for="desiredState">Estado</label>
+          <select id="desiredState">
+            <option value="delta">delta · 2.5 Hz</option>
+            <option value="theta" selected>theta · 6.0 Hz</option>
+            <option value="schumann">schumann · 7.83 Hz</option>
+            <option value="alpha">alpha · 10 Hz</option>
+            <option value="beta">beta · 18 Hz</option>
+          </select>
+        </div>
+        <div class="span-4">
+          <label for="geometry">Geometría</label>
+          <select id="geometry">
+            <option value="">automática</option>
+            <option value="phi_spiral">espiral Phi</option>
+            <option value="archimedean_spiral">espiral de Arquímedes</option>
+            <option value="fermat_spiral">espiral de Fermat</option>
+            <option value="concentric_mandala">mandala concéntrico</option>
+            <option value="flower_of_life">flor de la vida</option>
+            <option value="torus_field">campo toroide</option>
+          </select>
+        </div>
+        <div class="span-4">
+          <label for="duration">Duración, segundos</label>
+          <input id="duration" type="number" value="30" min="5" max="300" />
+        </div>
+        <div class="span-4">
+          <label for="source">Fuente</label>
+          <select id="source">
+            <option value="voice" selected>voz</option>
+            <option value="biodiversity">biodiversidad</option>
+            <option value="water">agua</option>
+            <option value="wind">viento</option>
+            <option value="community">comunidad</option>
+          </select>
+        </div>
+        <div class="span-8">
+          <label for="intention">Intención</label>
+          <input id="intention" value="biodiversidad" placeholder="calma, expansión, memoria, regeneración..." />
+        </div>
+        <div class="span-12">
+          <label for="description">Descripción opcional para IA sonora</label>
+          <textarea id="description" placeholder="Ejemplo: drone profundo, textura de bosque seco, viento solar, armónicos de cuarzo..."></textarea>
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button id="generateBtn" type="button">Generar viaje PhiVox</button>
+        <button id="streamBtn" class="secondary" type="button" disabled>Iniciar visualización viva</button>
       </div>
     </div>
 
-    <!-- Tarjeta 2: Generar viaje -->
-    <div class="card" id="journeyCard">
-      <h2>2. Generar Viaje</h2>
-      <label>Estado deseado</label>
-      <select id="desiredState">
-        <option value="delta">Delta (2.5 Hz)</option>
-        <option value="theta" selected>Theta (6.0 Hz)</option>
-        <option value="schumann">Schumann (7.83 Hz)</option>
-        <option value="alpha">Alpha (10.0 Hz)</option>
-        <option value="beta">Beta (18.0 Hz)</option>
-      </select>
-      <label>Duración (segundos)</label>
-      <input type="range" id="duration" min="10" max="300" value="60" step="10">
-      <span id="durationValue">60</span> s
-      <br>
-      <button id="generateBtn">✨ Generar Viaje Áureo</button>
-      <div id="journeyResult" class="hidden">
-        <h3>Viaje listo</h3>
-        <audio id="journeyAudio" controls style="width:100%"></audio>
+    <div class="card span-5">
+      <h3>3 · Resultado</h3>
+      <h2>Audio y descarga</h2>
+      <audio id="audioPlayer" controls class="hidden"></audio>
+      <div class="row" style="margin-top:12px">
+        <a id="downloadLink" class="button-link hidden" href="#" download>Descargar WAV</a>
       </div>
+      <div id="sequenceChips" class="signature"></div>
+      <div class="log" style="margin-top:12px"><pre id="profileOut">Todavía no hay viaje generado.</pre></div>
     </div>
 
-    <!-- Tarjeta 3: Visualización fractal -->
-    <div class="card">
-      <h2>3. Sincronización Fractal</h2>
-      <button id="streamBtn" class="hidden">🌀 Iniciar Visualización en Vivo</button>
-      <img id="fractalImg" class="hidden" src="" alt="Fractal áureo">
+    <div class="card span-7">
+      <h3>4 · Geometría viva</h3>
+      <h2 id="meaningTitle">Esperando intención</h2>
+      <img id="visualFrame" class="hidden" alt="Visualización geométrica PhiVox" />
+      <div id="visualPlaceholder" class="placeholder">La geometría aparecerá aquí cuando inicies la visualización.</div>
     </div>
-  </div>
 
-  <!-- Librerías -->
-  <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
-  <script>
-    // --- Variables globales ---
-    let humanBaseFreq = null;
-    let journeyId = null;
-    const socket = io();
+    <div class="card span-12">
+      <h3>Traza técnica</h3>
+      <div class="log"><pre id="logOut">PhiVox listo.</pre></div>
+    </div>
+  </section>
 
-    // --- Grabación de voz ---
-    let mediaRecorder;
-    const recordBtn = document.getElementById('recordBtn');
-    const recordingStatus = document.getElementById('recordingStatus');
-    const previewAudio = document.getElementById('previewAudio');
-    const profileDiv = document.getElementById('profile');
-    const profileData = document.getElementById('profileData');
+  <footer>PhiVox v0.2.2 · interfaz de experiencia: calibrar, generar, escuchar, visualizar y descargar.</footer>
+</main>
 
-    recordBtn.addEventListener('click', async () => {
+<script>
+  const $ = (id) => document.getElementById(id);
+  const logOut = $('logOut');
+  let recorder = null;
+  let recordedChunks = [];
+  let currentAudioFile = null;
+  let currentJourney = null;
+  let socket = null;
+
+  function log(message, type = 'info') {
+    const prefix = type === 'error' ? '✖' : type === 'ok' ? '✓' : '•';
+    logOut.textContent = `${new Date().toLocaleTimeString()} ${prefix} ${message}\n` + logOut.textContent;
+  }
+
+  function setBusy(button, busy, text) {
+    button.disabled = busy;
+    if (text) button.textContent = text;
+  }
+
+  function chooseMimeType() {
+    const options = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+    return options.find((type) => window.MediaRecorder && MediaRecorder.isTypeSupported(type)) || '';
+  }
+
+  $('recordBtn').addEventListener('click', async () => {
+    try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
-      const chunks = [];
-      mediaRecorder.ondataavailable = e => chunks.push(e.data);
-      mediaRecorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: 'audio/wav' });
-        previewAudio.src = URL.createObjectURL(blob);
-        previewAudio.classList.remove('hidden');
-        // Enviar al backend
-        const formData = new FormData();
-        formData.append('audio', blob, 'voice.wav');
-        const response = await fetch('/calibrate', { method: 'POST', body: formData });
-        const data = await response.json();
-        if (data.profile) {
-          humanBaseFreq = data.profile.human_base_freq;
-          profileData.textContent = JSON.stringify(data.profile, null, 2);
-          profileDiv.classList.remove('hidden');
-        }
+      recordedChunks = [];
+      const mimeType = chooseMimeType();
+      recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      recorder.ondataavailable = (event) => { if (event.data.size > 0) recordedChunks.push(event.data); };
+      recorder.onstop = () => {
+        const type = recorder.mimeType || 'audio/webm';
+        const ext = type.includes('ogg') ? 'ogg' : type.includes('mp4') ? 'm4a' : 'webm';
+        const blob = new Blob(recordedChunks, { type });
+        currentAudioFile = new File([blob], `voz_phivox.${ext}`, { type });
+        stream.getTracks().forEach((track) => track.stop());
+        $('recordingStatus').textContent = `Grabación lista: ${currentAudioFile.name} (${Math.round(blob.size / 1024)} KB)`;
+        log('Grabación vocal capturada.', 'ok');
       };
-      mediaRecorder.start();
-      recordingStatus.classList.remove('hidden');
-      recordBtn.disabled = true;
-      setTimeout(() => {
-        mediaRecorder.stop();
-        recordingStatus.classList.add('hidden');
-        recordBtn.disabled = false;
-        stream.getTracks().forEach(t => t.stop());
-      }, 5000);
-    });
+      recorder.start();
+      $('recordBtn').disabled = true;
+      $('stopBtn').disabled = false;
+      $('recordingStatus').textContent = 'Grabando... sostén una vocal o frase breve.';
+      log('Grabación iniciada.');
+    } catch (error) {
+      log(`No se pudo abrir el micrófono: ${error.message}`, 'error');
+    }
+  });
 
-    // --- Generar viaje ---
-    const generateBtn = document.getElementById('generateBtn');
-    const desiredState = document.getElementById('desiredState');
-    const duration = document.getElementById('duration');
-    const durationValue = document.getElementById('durationValue');
-    const journeyResult = document.getElementById('journeyResult');
-    const journeyAudio = document.getElementById('journeyAudio');
-    const streamBtn = document.getElementById('streamBtn');
-    const fractalImg = document.getElementById('fractalImg');
+  $('stopBtn').addEventListener('click', () => {
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    $('recordBtn').disabled = false;
+    $('stopBtn').disabled = true;
+  });
 
-    duration.addEventListener('input', () => durationValue.textContent = duration.value);
-    generateBtn.addEventListener('click', async () => {
-      if (!humanBaseFreq) { alert('Primero calibra tu voz'); return; }
+  $('audioFile').addEventListener('change', (event) => {
+    currentAudioFile = event.target.files[0] || null;
+    if (currentAudioFile) {
+      $('recordingStatus').textContent = `Archivo listo: ${currentAudioFile.name}`;
+      log('Archivo de audio cargado.', 'ok');
+    }
+  });
+
+  $('calibrateBtn').addEventListener('click', async () => {
+    if (!currentAudioFile) {
+      log('Primero graba o sube un archivo de audio.', 'error');
+      return;
+    }
+    setBusy($('calibrateBtn'), true, 'Calibrando...');
+    try {
+      const form = new FormData();
+      form.append('audio', currentAudioFile);
+      const response = await fetch('/calibrate', { method: 'POST', body: form });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Error de calibración');
+      const profile = data.profile || {};
+      if (profile.human_base_freq) {
+        $('humanBaseFreq').value = profile.human_base_freq;
+        $('freqMetric').textContent = `${profile.human_base_freq} Hz`;
+      }
+      $('profileOut').textContent = JSON.stringify(data, null, 2);
+      log(`Calibración completada: ${profile.human_base_freq || '—'} Hz.`, 'ok');
+    } catch (error) {
+      log(error.message, 'error');
+    } finally {
+      setBusy($('calibrateBtn'), false, 'Calibrar');
+    }
+  });
+
+  $('generateBtn').addEventListener('click', async () => {
+    setBusy($('generateBtn'), true, 'Generando...');
+    try {
+      const payload = {
+        human_base_freq: Number($('humanBaseFreq').value),
+        duration: Number($('duration').value),
+        desired_state: $('desiredState').value,
+        source: $('source').value,
+        intention: $('intention').value || 'calma'
+      };
+      if ($('geometry').value) payload.geometry = $('geometry').value;
+      if ($('description').value.trim()) payload.description = $('description').value.trim();
+
       const response = await fetch('/generate_journey', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          human_base_freq: humanBaseFreq,
-          duration: parseInt(duration.value),
-          desired_state: desiredState.value
-        })
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
       const data = await response.json();
-      journeyId = data.journey_id;
-      journeyAudio.src = data.download_url;
-      journeyResult.classList.remove('hidden');
-      streamBtn.classList.remove('hidden');
-    });
+      if (!response.ok) throw new Error(data.error || 'No se pudo generar el viaje');
 
-    // --- Streaming WebSocket del fractal + audio ---
-    streamBtn.addEventListener('click', () => {
-      if (!journeyId) return;
-      socket.emit('start_stream', { journey_id: journeyId });
-      fractalImg.classList.remove('hidden');
-    });
+      currentJourney = data;
+      $('freqMetric').textContent = `${data.human_base_freq} Hz`;
+      $('beatMetric').textContent = `${data.beat_freq} Hz`;
+      $('geometryMetric').textContent = data.geometry_profile?.geometry || '—';
+      $('meaningTitle').textContent = data.geometry_profile?.meaning || 'Geometría generada';
+      $('profileOut').textContent = JSON.stringify(data, null, 2);
 
-    socket.on('stream_started', (data) => console.log('Stream iniciado', data));
-    socket.on('audio_chunk', (data) => {
-      if (data.fractal_png_base64) {
-        fractalImg.src = 'data:image/png;base64,' + data.fractal_png_base64;
-      }
-      // Opcional: reproducir audio en tiempo real desde base64 (requiere Web Audio API más compleja)
-    });
-    socket.on('stream_finished', () => console.log('Stream finalizado'));
-  </script>
+      const audio = $('audioPlayer');
+      audio.src = data.download_url;
+      audio.classList.remove('hidden');
+      $('downloadLink').href = data.download_url;
+      $('downloadLink').classList.remove('hidden');
+      $('downloadLink').setAttribute('download', `phivox_${data.journey_id}.wav`);
+      $('streamBtn').disabled = false;
+
+      $('sequenceChips').innerHTML = '';
+      (data.golden_sequence_hz || []).forEach((freq) => {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.textContent = `${freq} Hz`;
+        $('sequenceChips').appendChild(chip);
+      });
+      log(`Viaje generado: ${data.journey_id}`, 'ok');
+    } catch (error) {
+      log(error.message, 'error');
+    } finally {
+      setBusy($('generateBtn'), false, 'Generar viaje PhiVox');
+    }
+  });
+
+  $('streamBtn').addEventListener('click', () => {
+    if (!currentJourney?.journey_id) {
+      log('Primero genera un viaje.', 'error');
+      return;
+    }
+    if (typeof io === 'undefined') {
+      log('Socket.IO no está disponible. Revisa conexión a internet para cargar la librería del navegador.', 'error');
+      return;
+    }
+    if (!socket) {
+      socket = io();
+      socket.on('connect', () => log('Socket.IO conectado.', 'ok'));
+      socket.on('stream_started', (data) => log(`Visualización iniciada: ${data.total_chunks} cuadros.`));
+      socket.on('stream_error', (data) => log(data.error || 'Error de stream', 'error'));
+      socket.on('audio_chunk', (data) => {
+        if (data.fractal_png_base64) {
+          $('visualFrame').src = `data:image/png;base64,${data.fractal_png_base64}`;
+          $('visualFrame').classList.remove('hidden');
+          $('visualPlaceholder').classList.add('hidden');
+        }
+      });
+      socket.on('stream_finished', () => log('Visualización completada.', 'ok'));
+    }
+    socket.emit('start_stream', { journey_id: currentJourney.journey_id });
+    log('Solicitando visualización viva...');
+  });
+</script>
 </body>
 </html>

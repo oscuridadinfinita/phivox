@@ -1,12 +1,26 @@
-phivox-env/
-data/
+# Python
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+*.egg-info/
 
-# PhiVox generated media
+# Virtual environments
+phivox-env/
+.venv/
+venv/
+
+# Secrets
+.env
+*.pem
+
+# PhiVox runtime data and generated media
+data/
 *.wav
 *.mp3
 *.flac
 *.ogg
-data/
+*.webm
+*.aac
+
+# OS/editor
+.DS_Store
+.vscode/
