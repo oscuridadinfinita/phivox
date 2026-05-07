@@ -50,6 +50,7 @@ from config import (
     UPLOAD_DIR,
 )
 from fractal_visualizer import GoldenSpiralVisualizer
+from geometry_engine import SacredGeometryEngine
 from quantum_analyzer import VoiceAnalyzer
 
 
@@ -76,8 +77,10 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode=SOCKETIO_ASYNC_MOD
 voice_analyzer = VoiceAnalyzer(sample_rate=SAMPLE_RATE)
 acoustic_engine = AcousticEngine(sample_rate=SAMPLE_RATE)
 visualizer = GoldenSpiralVisualizer()
+geometry_engine = SacredGeometryEngine()
 
 JOURNEY_REGISTRY: dict[str, Path] = {}
+JOURNEY_METADATA: dict[str, dict[str, Any]] = {}
 
 HOME_TEMPLATE = """
 <!doctype html>
@@ -144,7 +147,16 @@ def generate_journey() -> tuple[Any, int]:
         human_base_freq = float(payload.get("human_base_freq"))
         duration = min(float(payload.get("duration", 60.0)), MAX_DURATION_SECONDS)
         desired_state = str(payload.get("desired_state", "theta")).lower().strip()
+        source = str(payload.get("source", "voice")).lower().strip()
+        intention = str(payload.get("intention", "calma")).lower().strip()
+        requested_geometry = payload.get("geometry")
         beat_freq = _resolve_beat_frequency(desired_state)
+        geometry_profile = geometry_engine.resolve_profile(
+            desired_state=desired_state,
+            requested_geometry=requested_geometry,
+            source=source,
+            intention=intention,
+        )
 
         sequence = acoustic_engine.generate_golden_sequence(human_base_freq, length=8)
         om_layer = acoustic_engine.synthesize_om(human_base_freq, duration)
@@ -159,6 +171,14 @@ def generate_journey() -> tuple[Any, int]:
         output_path = OUTPUT_DIR / f"journey_{journey_id}.wav"
         acoustic_engine.write_wav(render, output_path)
         JOURNEY_REGISTRY[journey_id] = output_path
+        JOURNEY_METADATA[journey_id] = {
+            "human_base_freq": human_base_freq,
+            "desired_state": desired_state,
+            "beat_freq": beat_freq,
+            "source": source,
+            "intention": intention,
+            "geometry_profile": geometry_profile.to_dict(),
+        }
 
         description = payload.get("description") or _default_ai_description(
             human_base_freq=human_base_freq,
@@ -178,6 +198,7 @@ def generate_journey() -> tuple[Any, int]:
         desired_state=desired_state,
         beat_freq=beat_freq,
         golden_sequence_hz=[round(float(freq), 4) for freq in sequence],
+        geometry_profile=geometry_profile.to_dict(),
         ai_music_prompt=ai_music_prompt,
         disclaimer="Audio experimental para bienestar y arte; no sustituye diagnóstico ni tratamiento médico.",
     ), HTTPStatus.OK
@@ -202,6 +223,8 @@ def start_stream(data: dict | None = None) -> None:
     data = data or {}
     journey_id = str(data.get("journey_id", ""))
     path = JOURNEY_REGISTRY.get(journey_id) or OUTPUT_DIR / f"journey_{journey_id}.wav"
+    metadata = JOURNEY_METADATA.get(journey_id, {})
+    geometry_profile = metadata.get("geometry_profile", {})
     if not journey_id or not path.exists():
         emit("stream_error", {"error": "Valid journey_id is required"})
         return
@@ -213,12 +236,21 @@ def start_stream(data: dict | None = None) -> None:
     chunk_size = max(1, int(sr * STREAM_CHUNK_SECONDS))
     total_chunks = int(math.ceil(len(pcm) / chunk_size))
 
-    emit("stream_started", {"journey_id": journey_id, "sample_rate": sr, "total_chunks": total_chunks})
+    emit(
+        "stream_started",
+        {
+            "journey_id": journey_id,
+            "sample_rate": sr,
+            "total_chunks": total_chunks,
+            "geometry_profile": geometry_profile,
+        },
+    )
     for index in range(total_chunks):
         start = index * chunk_size
         end = min(start + chunk_size, len(pcm))
         chunk = pcm[start:end]
         phase = (index / max(total_chunks, 1)) * 2.0 * math.pi * PHI
+        amplitude = float(np.clip(np.mean(np.abs(chunk.astype(np.float32))) / 32768.0 * 8.0, 0.0, 1.0))
         emit(
             "audio_chunk",
             {
@@ -229,7 +261,16 @@ def start_stream(data: dict | None = None) -> None:
                 "channels": 2,
                 "dtype": "int16_le",
                 "audio_chunk_base64": base64.b64encode(chunk.astype("<i2").tobytes()).decode("ascii"),
-                "fractal_png_base64": visualizer.generate_frame_base64(phase=phase),
+                "fractal_png_base64": visualizer.generate_frame_base64(
+                    phase=phase,
+                    geometry=geometry_profile.get("geometry"),
+                    desired_state=str(geometry_profile.get("desired_state", "theta")),
+                    source=str(geometry_profile.get("source", "voice")),
+                    intention=str(geometry_profile.get("intention", "calma")),
+                    amplitude=amplitude,
+                ),
+                "amplitude": amplitude,
+                "geometry_profile": geometry_profile,
             },
         )
         socketio.sleep(STREAM_CHUNK_SECONDS)

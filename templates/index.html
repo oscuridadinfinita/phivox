@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>PhiVox · Portal Vibracional</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root { --phi: 1.618; --bg: #0a0f0f; --panel: #111b1b; --gold: #c9a050; --text: #e0e0d0; }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; align-items: center; }
+    .container { max-width: 900px; width: 100%; padding: 20px; box-sizing: border-box; }
+    h1, h2 { color: var(--gold); text-align: center; }
+    .card { background: var(--panel); border: 1px solid #2a3a3a; border-radius: 16px; padding: 20px; margin: 20px 0; }
+    button { background: var(--gold); color: #0a0f0f; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: transform 0.2s; }
+    button:hover { transform: scale(1.02); }
+    select, input[type=range] { width: 100%; padding: 10px; background: #0a0f0f; color: var(--text); border: 1px solid #2a3a3a; border-radius: 8px; margin: 10px 0; }
+    #profile pre { background: #000; padding: 15px; border-radius: 10px; overflow-x: auto; }
+    #fractalImg { max-width: 100%; border-radius: 16px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌀 PhiVox</h1>
+    <p style="text-align:center">Laboratorio de música dimensional cuántica</p>
+
+    <!-- Tarjeta 1: Calibración -->
+    <div class="card">
+      <h2>1. Calibración de Voz</h2>
+      <button id="recordBtn">🎤 Grabar muestra (5s)</button>
+      <span id="recordingStatus" class="hidden"> Grabando...</span>
+      <audio id="previewAudio" controls class="hidden" style="width:100%;margin-top:10px;"></audio>
+      <div id="profile" class="hidden">
+        <h3>Perfil Vibracional</h3>
+        <pre id="profileData"></pre>
+      </div>
+    </div>
+
+    <!-- Tarjeta 2: Generar viaje -->
+    <div class="card" id="journeyCard">
+      <h2>2. Generar Viaje</h2>
+      <label>Estado deseado</label>
+      <select id="desiredState">
+        <option value="delta">Delta (2.5 Hz)</option>
+        <option value="theta" selected>Theta (6.0 Hz)</option>
+        <option value="schumann">Schumann (7.83 Hz)</option>
+        <option value="alpha">Alpha (10.0 Hz)</option>
+        <option value="beta">Beta (18.0 Hz)</option>
+      </select>
+      <label>Duración (segundos)</label>
+      <input type="range" id="duration" min="10" max="300" value="60" step="10">
+      <span id="durationValue">60</span> s
+      <br>
+      <button id="generateBtn">✨ Generar Viaje Áureo</button>
+      <div id="journeyResult" class="hidden">
+        <h3>Viaje listo</h3>
+        <audio id="journeyAudio" controls style="width:100%"></audio>
+      </div>
+    </div>
+
+    <!-- Tarjeta 3: Visualización fractal -->
+    <div class="card">
+      <h2>3. Sincronización Fractal</h2>
+      <button id="streamBtn" class="hidden">🌀 Iniciar Visualización en Vivo</button>
+      <img id="fractalImg" class="hidden" src="" alt="Fractal áureo">
+    </div>
+  </div>
+
+  <!-- Librerías -->
+  <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+  <script>
+    // --- Variables globales ---
+    let humanBaseFreq = null;
+    let journeyId = null;
+    const socket = io();
+
+    // --- Grabación de voz ---
+    let mediaRecorder;
+    const recordBtn = document.getElementById('recordBtn');
+    const recordingStatus = document.getElementById('recordingStatus');
+    const previewAudio = document.getElementById('previewAudio');
+    const profileDiv = document.getElementById('profile');
+    const profileData = document.getElementById('profileData');
+
+    recordBtn.addEventListener('click', async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      const chunks = [];
+      mediaRecorder.ondataavailable = e => chunks.push(e.data);
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: 'audio/wav' });
+        previewAudio.src = URL.createObjectURL(blob);
+        previewAudio.classList.remove('hidden');
+        // Enviar al backend
+        const formData = new FormData();
+        formData.append('audio', blob, 'voice.wav');
+        const response = await fetch('/calibrate', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (data.profile) {
+          humanBaseFreq = data.profile.human_base_freq;
+          profileData.textContent = JSON.stringify(data.profile, null, 2);
+          profileDiv.classList.remove('hidden');
+        }
+      };
+      mediaRecorder.start();
+      recordingStatus.classList.remove('hidden');
+      recordBtn.disabled = true;
+      setTimeout(() => {
+        mediaRecorder.stop();
+        recordingStatus.classList.add('hidden');
+        recordBtn.disabled = false;
+        stream.getTracks().forEach(t => t.stop());
+      }, 5000);
+    });
+
+    // --- Generar viaje ---
+    const generateBtn = document.getElementById('generateBtn');
+    const desiredState = document.getElementById('desiredState');
+    const duration = document.getElementById('duration');
+    const durationValue = document.getElementById('durationValue');
+    const journeyResult = document.getElementById('journeyResult');
+    const journeyAudio = document.getElementById('journeyAudio');
+    const streamBtn = document.getElementById('streamBtn');
+    const fractalImg = document.getElementById('fractalImg');
+
+    duration.addEventListener('input', () => durationValue.textContent = duration.value);
+    generateBtn.addEventListener('click', async () => {
+      if (!humanBaseFreq) { alert('Primero calibra tu voz'); return; }
+      const response = await fetch('/generate_journey', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          human_base_freq: humanBaseFreq,
+          duration: parseInt(duration.value),
+          desired_state: desiredState.value
+        })
+      });
+      const data = await response.json();
+      journeyId = data.journey_id;
+      journeyAudio.src = data.download_url;
+      journeyResult.classList.remove('hidden');
+      streamBtn.classList.remove('hidden');
+    });
+
+    // --- Streaming WebSocket del fractal + audio ---
+    streamBtn.addEventListener('click', () => {
+      if (!journeyId) return;
+      socket.emit('start_stream', { journey_id: journeyId });
+      fractalImg.classList.remove('hidden');
+    });
+
+    socket.on('stream_started', (data) => console.log('Stream iniciado', data));
+    socket.on('audio_chunk', (data) => {
+      if (data.fractal_png_base64) {
+        fractalImg.src = 'data:image/png;base64,' + data.fractal_png_base64;
+      }
+      // Opcional: reproducir audio en tiempo real desde base64 (requiere Web Audio API más compleja)
+    });
+    socket.on('stream_finished', () => console.log('Stream finalizado'));
+  </script>
+</body>
+</html>
